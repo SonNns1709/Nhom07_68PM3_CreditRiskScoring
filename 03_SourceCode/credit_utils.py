@@ -53,3 +53,20 @@ class Winsorizer(BaseEstimator, TransformerMixin):
 
     def get_feature_names_out(self, input_features=None):
         return np.asarray(input_features, dtype=object)    # để sau này lấy được tên cột
+
+def make_preprocessor(scale, use_fe=True, add_indicator=True):
+    num_cols = NUM_COLS + (ENG_COLS if use_fe else [])
+    num_steps = [("impute", SimpleImputer(strategy="median", add_indicator=add_indicator))]
+    if scale:
+        num_steps = [("winsor", Winsorizer())] + num_steps + [("scale", StandardScaler())]
+    cat_pipe = Pipeline([
+        ("impute", SimpleImputer(strategy="constant", fill_value="Missing")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+    ])
+    return ColumnTransformer([("num", Pipeline(num_steps), num_cols), ("cat", cat_pipe, CAT_COLS)])
+
+
+def build_pipeline(model, scale, use_fe=True, add_indicator=True):
+    steps = [("fe", CreditFeatures())] if use_fe else []
+    steps += [("prep", make_preprocessor(scale, use_fe, add_indicator)), ("clf", model)]
+    return Pipeline(steps)
