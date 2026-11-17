@@ -34,3 +34,22 @@ class CreditFeatures(BaseEstimator, TransformerMixin):
         X["DEROG_DELINQ"] = X[["DEROG", "DELINQ"]].sum(axis=1, min_count=1)
         X["INQ_PER_LINE"] = X["NINQ"] / (X["CLNO"] + 1)
         return X.replace([np.inf, -np.inf], np.nan)    # chia cho 0 thì coi như thiếu
+
+class Winsorizer(BaseEstimator, TransformerMixin):
+    """Cắt ngoại lai theo percentile học từ tập train (không xoá dòng nào)."""
+
+    def __init__(self, lower=0.01, upper=0.99):
+        self.lower = lower
+        self.upper = upper
+
+    def fit(self, X, y=None):
+        X = pd.DataFrame(X)
+        self.lo_ = X.quantile(self.lower)      # mốc sàn, học từ dữ liệu fit
+        self.hi_ = X.quantile(self.upper)      # mốc trần
+        return self
+
+    def transform(self, X):
+        return pd.DataFrame(X).clip(self.lo_, self.hi_, axis=1).to_numpy()
+
+    def get_feature_names_out(self, input_features=None):
+        return np.asarray(input_features, dtype=object)    # để sau này lấy được tên cột
